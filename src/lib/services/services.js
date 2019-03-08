@@ -11,7 +11,7 @@ const { USER_UPDATE_TIME_QTY, USER_UPDATE_TIME_DENOM } = process.env;
 const userUpdateTime = parseInt(USER_UPDATE_TIME_QTY, 10);
 
 export const runUpdateUserService = () => {
-  const cluster = genServiceCluster('updateUserService', 2000, 1, async () => {
+  const cluster = genServiceCluster('updateUserService', 2000, 2, async () => {
     const oldProfile = await Profile.findOneAndUpdate(
       {
         $or: [

@@ -74,9 +74,12 @@ export default async function transformProfile(input) {
     _.identity
   );
 
-  return Profile.findOneAndUpdate({ login }, updatedProfile, {
-    overwrite: true,
-    upsert: true,
-    new: true
-  });
+  return Profile.findOneAndUpdate(
+    { login: login.toLowerCase() },
+    updatedProfile,
+    {
+      upsert: true,
+      new: true
+    }
+  );
 }
