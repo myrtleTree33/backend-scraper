@@ -1,3 +1,4 @@
+import opencage from 'opencage-api-client';
 import Profile from '../models/Profile';
 import transformRepo from './RepoTransformer';
 import transformCommit from './CommitTransformer';
@@ -60,6 +61,8 @@ export default async function transformProfile(input) {
       location,
       isHireable,
       bio,
+      starredReposLangs: starredRepos.languages,
+      ownedReposLangs: ownedRepos.languages,
       numPublicRepos: publicRepos,
       numPublicGists: publicGists,
       numFollowers,
@@ -69,7 +72,8 @@ export default async function transformProfile(input) {
       followerLogins,
       createdAt,
       updatedAt,
-      lastScrapedAt: Date.now()
+      lastScrapedAt: Date.now(),
+      depth: 0 // always set depth to 0 after scraping
     },
     _.identity
   );

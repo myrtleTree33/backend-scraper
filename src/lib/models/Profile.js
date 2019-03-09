@@ -31,6 +31,14 @@ const profileSchema = new Schema({
   location: {
     type: String
   },
+  countryManual: {
+    type: String,
+    default: ''
+  },
+  stateManual: {
+    type: String,
+    default: ''
+  },
   isHireable: {
     type: Boolean,
     default: true
@@ -87,6 +95,18 @@ const profileSchema = new Schema({
   },
   telegramId: {
     type: String
+  },
+  depth: {
+    type: Number,
+    default: 0
+  },
+  starredReposLangs: {
+    type: Object,
+    default: {}
+  },
+  ownedReposLangs: {
+    type: Object,
+    default: {}
   }
 });
 

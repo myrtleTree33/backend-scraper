@@ -19,7 +19,10 @@ dotenv.load();
 
 export default function app() {
   console.log('Running Scraper..');
-  runUpdateUserService();
+  runUpdateUserService({
+    timeInterval: 2000,
+    numWorkers: 5
+  });
 }
 
 if (require.main === module) {
