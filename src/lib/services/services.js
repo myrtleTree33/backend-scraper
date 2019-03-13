@@ -4,8 +4,10 @@ import transformRepo from '../transformers/RepoTransformer';
 import transformProfile from '../transformers/ProfileTransformer';
 import genServiceCluster from '../services/serviceCreator';
 import Profile from '../models/Profile';
+import RepoQueue from '../models/RepoQueue';
 
 const { scrapeUser } = profileTools;
+const { scrapeRepo } = repoTools;
 
 const { USER_UPDATE_TIME_QTY, USER_UPDATE_TIME_DENOM } = process.env;
 const userUpdateTime = parseInt(USER_UPDATE_TIME_QTY, 10);
@@ -74,6 +76,68 @@ export const runUpdateUserService = ({
           );
         });
       }
+    }
+  );
+
+  // run cluster
+  cluster.map(s => s());
+};
+
+const saveFollowerToQueue = async login => {
+  return Profile.findOneAndUpdate(
+    { login },
+    { login, lastScrapedAt: new Date(0) },
+    { new: true, upsert: true }
+  );
+};
+
+export const runLoadRepoFollowersService = ({
+  timeInterval = 2000,
+  numWorkers = 1
+}) => {
+  const cluster = genServiceCluster(
+    'runLoadRepoFollowersService',
+    timeInterval,
+    numWorkers,
+    async () => {
+      // Find a repo to update
+      const repoQueue = await RepoQueue.findOne({});
+
+      // skip if queue empty
+      if (!repoQueue) {
+        return;
+      }
+
+      // delete from queue
+      await RepoQueue.deleteOne({ _id: repoQueue._id });
+
+      const fullName = repoQueue.fullName.toLowerCase();
+      console.log(`Scraping ${fullName}..`);
+
+      // Scrape the repo
+      const repoInfo = await scrapeRepo({
+        repo: fullName,
+        maxPages: 10,
+        skipFollowers: false
+      });
+
+      // skip if no such repo
+      if (!repoInfo) {
+        return;
+      }
+
+      // save followers
+      const { followers } = repoInfo;
+      const saveFollowerPromises = followers.map(f => {
+        const login = f.handle.toLowerCase();
+        return saveFollowerToQueue(login);
+      });
+
+      console.log(
+        `Saving ${saveFollowerPromises.length} profiles from repo=${fullName}..`
+      );
+
+      await Promise.all(saveFollowerPromises);
     }
   );
 

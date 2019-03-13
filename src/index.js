@@ -1,5 +1,8 @@
 import mongoose from 'mongoose';
-import { runUpdateUserService } from './lib/services/services';
+import {
+  runUpdateUserService,
+  runLoadRepoFollowersService
+} from './lib/services/services';
 import Profile from './lib/models/Profile';
 
 const { MONGO_URI } = process.env;
@@ -22,6 +25,11 @@ export default function app() {
   runUpdateUserService({
     timeInterval: 2000,
     numWorkers: 5
+  });
+
+  runLoadRepoFollowersService({
+    timeInterval: 2000,
+    numWorkers: 1
   });
 }
 
