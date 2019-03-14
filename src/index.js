@@ -24,7 +24,7 @@ export default function app() {
   console.log('Running Scraper..');
   runUpdateUserService({
     timeInterval: 2000,
-    numWorkers: 5
+    numWorkers: 2 // usual 5
   });
 
   runLoadRepoFollowersService({
