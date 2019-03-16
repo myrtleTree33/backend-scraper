@@ -190,7 +190,7 @@ export const runLoadQueryService = ({
                 { login },
                 {
                   login,
-                  depth,
+                  depth: 9, // set deep depth
                   lastScrapedAt: new Date(0)
                 },
                 {
