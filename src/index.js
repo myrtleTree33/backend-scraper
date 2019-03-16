@@ -2,7 +2,8 @@ import mongoose from 'mongoose';
 import {
   runUpdateUserService,
   runLoadRepoFollowersService,
-  runLoadQueryService
+  runLoadReposQueryService,
+  runLoadUsersQueryService
 } from './lib/services/services';
 import Profile from './lib/models/Profile';
 
@@ -33,7 +34,12 @@ export default function app() {
     numWorkers: 1
   });
 
-  runLoadQueryService({
+  runLoadReposQueryService({
+    timeInterval: 2000,
+    numWorkers: 1
+  });
+
+  runLoadUsersQueryService({
     timeInterval: 2000,
     numWorkers: 1
   });

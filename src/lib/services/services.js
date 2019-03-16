@@ -10,7 +10,7 @@ import QueryQueue from '../models/QueryQueue';
 
 const { scrapeUser } = profileTools;
 const { scrapeRepo } = repoTools;
-const { scrapeReposByKeyword } = queryTools;
+const { scrapeReposByKeyword, scrapeUsersByKeyword } = queryTools;
 
 const { USER_UPDATE_TIME_QTY, USER_UPDATE_TIME_DENOM } = process.env;
 const userUpdateTime = parseInt(USER_UPDATE_TIME_QTY, 10);
@@ -153,20 +153,20 @@ export const runLoadRepoFollowersService = ({
 };
 
 /**
- * Run load query service
+ * Run load query repos service
  * @param {*} param0
  */
-export const runLoadQueryService = ({
+export const runLoadReposQueryService = ({
   timeInterval = 2000,
   numWorkers = 1
 }) => {
   const cluster = genServiceCluster(
-    'runLoadQueryService',
+    'runLoadReposQueryService',
     timeInterval,
     numWorkers,
     async () => {
       // Find a repo to update
-      const queryQueue = await QueryQueue.findOne({});
+      const queryQueue = await QueryQueue.findOne({ type: 'repos' });
 
       // skip if queue empty
       if (!queryQueue) {
@@ -207,6 +207,66 @@ export const runLoadQueryService = ({
               );
             } catch (e) {
               console.error('Error while saving repoQueue');
+              console.error(e);
+            }
+          })();
+        });
+        await sleep(5000);
+      }
+    }
+  );
+
+  // run cluster
+  cluster.map(s => s());
+};
+
+/**
+ * Run load query users service
+ * @param {*} param0
+ */
+export const runLoadUsersQueryService = ({
+  timeInterval = 2000,
+  numWorkers = 1
+}) => {
+  const cluster = genServiceCluster(
+    'runLoadUsersQueryService',
+    timeInterval,
+    numWorkers,
+    async () => {
+      // Find a repo to update
+      const queryQueue = await QueryQueue.findOne({ type: 'users' });
+
+      // skip if queue empty
+      if (!queryQueue) {
+        return;
+      }
+
+      // delete from queue
+      await QueryQueue.deleteOne({ _id: queryQueue._id });
+      const { query, pages } = queryQueue;
+      console.log(`Scraping query=${query}..`);
+
+      for (let i = 1; i <= pages; i++) {
+        const logins = await scrapeUsersByKeyword(query, i);
+        console.log(logins);
+        logins.map(login => {
+          (async () => {
+            try {
+              // add the profile to scrape
+              await Profile.findOneAndUpdate(
+                { login },
+                {
+                  login,
+                  depth: 9, // set deep depth
+                  lastScrapedAt: new Date(0)
+                },
+                {
+                  upsert: true,
+                  new: true
+                }
+              );
+            } catch (e) {
+              console.error(`Error while queuing user login=${login}`);
               console.error(e);
             }
           })();

@@ -14,6 +14,11 @@ const queryQueueSchema = new Schema({
     type: Number,
     default: 10
   },
+  // either of user or repo
+  type: {
+    type: String,
+    required: true
+  },
   createdAt: {
     type: Date,
     required: true,
