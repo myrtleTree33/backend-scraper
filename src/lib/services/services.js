@@ -184,6 +184,22 @@ export const runLoadQueryService = ({
         repos.map(r => {
           (async () => {
             try {
+              // add the profile to scrape
+              const login = r.split('/')[0].toLowerCase();
+              await Profile.findOneAndUpdate(
+                { login },
+                {
+                  login,
+                  depth,
+                  lastScrapedAt: new Date(0)
+                },
+                {
+                  upsert: true,
+                  new: true
+                }
+              );
+
+              // add the repo to scrape
               await RepoQueue.findOneAndUpdate(
                 { fullName: r },
                 { fullName: r },
