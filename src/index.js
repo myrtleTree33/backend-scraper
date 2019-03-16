@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
 import {
   runUpdateUserService,
-  runLoadRepoFollowersService
+  runLoadRepoFollowersService,
+  runLoadQueryService
 } from './lib/services/services';
 import Profile from './lib/models/Profile';
 
@@ -28,6 +29,11 @@ export default function app() {
   });
 
   runLoadRepoFollowersService({
+    timeInterval: 2000,
+    numWorkers: 1
+  });
+
+  runLoadQueryService({
     timeInterval: 2000,
     numWorkers: 1
   });

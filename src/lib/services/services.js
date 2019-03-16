@@ -1,13 +1,16 @@
 import moment from 'moment';
-import { profileTools, repoTools } from 'node-github-scraper-sdk';
+import sleep from 'await-sleep';
+import { profileTools, repoTools, queryTools } from 'node-github-scraper-sdk';
 import transformRepo from '../transformers/RepoTransformer';
 import transformProfile from '../transformers/ProfileTransformer';
 import genServiceCluster from '../services/serviceCreator';
 import Profile from '../models/Profile';
 import RepoQueue from '../models/RepoQueue';
+import QueryQueue from '../models/QueryQueue';
 
 const { scrapeUser } = profileTools;
 const { scrapeRepo } = repoTools;
+const { scrapeReposByKeyword } = queryTools;
 
 const { USER_UPDATE_TIME_QTY, USER_UPDATE_TIME_DENOM } = process.env;
 const userUpdateTime = parseInt(USER_UPDATE_TIME_QTY, 10);
@@ -163,43 +166,37 @@ export const runLoadQueryService = ({
     numWorkers,
     async () => {
       // Find a repo to update
-      const QueryQueue = await QueryQueue.findOne({});
+      const queryQueue = await QueryQueue.findOne({});
 
       // skip if queue empty
-      if (!repoQueue) {
+      if (!queryQueue) {
         return;
       }
 
       // delete from queue
-      await RepoQueue.deleteOne({ _id: repoQueue._id });
+      await QueryQueue.deleteOne({ _id: queryQueue._id });
+      const { query, pages } = queryQueue;
+      console.log(`Scraping query=${query}..`);
 
-      const fullName = repoQueue.fullName.toLowerCase();
-      console.log(`Scraping ${fullName}..`);
-
-      // Scrape the repo
-      const repoInfo = await scrapeRepo({
-        repo: fullName,
-        maxPages: 10,
-        skipFollowers: false
-      });
-
-      // skip if no such repo
-      if (!repoInfo) {
-        return;
+      for (let i = 1; i <= pages; i++) {
+        const repos = await scrapeReposByKeyword(query, i);
+        console.log(repos);
+        repos.map(r => {
+          (async () => {
+            try {
+              await RepoQueue.findOneAndUpdate(
+                { fullName: r },
+                { fullName: r },
+                { new: true, upsert: true }
+              );
+            } catch (e) {
+              console.error('Error while saving repoQueue');
+              console.error(e);
+            }
+          })();
+        });
+        await sleep(5000);
       }
-
-      // save followers
-      const { followers } = repoInfo;
-      const saveFollowerPromises = followers.map(f => {
-        const login = f.handle.toLowerCase();
-        return saveFollowerToQueue(login);
-      });
-
-      console.log(
-        `Saving ${saveFollowerPromises.length} profiles from repo=${fullName}..`
-      );
-
-      await Promise.all(saveFollowerPromises);
     }
   );
 
