@@ -1,8 +1,20 @@
 import opencage from 'opencage-api-client';
+import _ from 'lodash';
+import axios from 'axios';
+
 import Profile from '../models/Profile';
 import transformRepo from './RepoTransformer';
 import transformCommit from './CommitTransformer';
-import _ from 'lodash';
+
+const { GEOCODE_URL } = process.env;
+
+async function decodeLocation(location) {
+  const res = await axios.post(`${GEOCODE_URL}/geocode/decode`, {
+    query: location
+  });
+  const { countryNames, cityNames } = res.data;
+  return { countries: countryNames, cities: cityNames };
+}
 
 async function saveRepos(repos) {
   repos.map(r =>
@@ -42,6 +54,8 @@ export default async function transformProfile(input) {
   // console.log(followers.length);
   // console.log(commitHistory.length);
 
+  const { countries = [], cities = [] } = await decodeLocation(location);
+
   await saveRepos(ownedRepos.repos);
   await saveRepos(starredRepos.repos);
   const followerLogins = followers.map(f => f.login.toString().toLowerCase());
@@ -58,7 +72,9 @@ export default async function transformProfile(input) {
       profilePic,
       company,
       blog,
-      location,
+      location: location.toLowerCase(),
+      countries,
+      cities,
       isHireable,
       bio,
       starredReposLangs: starredRepos.languages,

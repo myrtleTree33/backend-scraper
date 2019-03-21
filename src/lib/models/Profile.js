@@ -31,6 +31,14 @@ const profileSchema = new Schema({
   location: {
     type: String
   },
+  countries: {
+    type: [String],
+    default: []
+  },
+  cities: {
+    type: [String],
+    default: []
+  },
   countryManual: {
     type: String,
     default: ''
