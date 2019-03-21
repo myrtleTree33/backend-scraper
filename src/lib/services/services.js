@@ -89,7 +89,11 @@ export const runUpdateUserService = ({
 const saveFollowerToQueue = async login => {
   return Profile.findOneAndUpdate(
     { login },
-    { login, lastScrapedAt: new Date(0) },
+    {
+      login,
+      lastScrapedAt: new Date(0),
+      depth: 99 // set deep depth for user scraping
+    },
     { new: true, upsert: true }
   );
 };
@@ -190,7 +194,7 @@ export const runLoadReposQueryService = ({
                 { login },
                 {
                   login,
-                  depth: 9, // set deep depth
+                  depth: 99, // set deep depth
                   lastScrapedAt: new Date(0)
                 },
                 {
@@ -257,7 +261,7 @@ export const runLoadUsersQueryService = ({
                 { login },
                 {
                   login,
-                  depth: 9, // set deep depth
+                  depth: 99, // set deep depth
                   lastScrapedAt: new Date(0)
                 },
                 {
