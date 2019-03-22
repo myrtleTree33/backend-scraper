@@ -79,6 +79,8 @@ export default async function transformProfile(input) {
       bio,
       starredReposLangs: starredRepos.languages,
       ownedReposLangs: ownedRepos.languages,
+      starredReposLangsEarliest: starredRepos.firstCreatedByLang,
+      ownedReposLangsEarliest: ownedRepos.firstCreatedByLang,
       numPublicRepos: publicRepos,
       numPublicGists: publicGists,
       numFollowers,
