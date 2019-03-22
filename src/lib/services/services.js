@@ -56,27 +56,30 @@ export const runUpdateUserService = ({
 
       const upsertedUser = await transformProfile(user);
 
-      console.log(`current depth: ${depth} current user: ${user}`);
+      console.log(`current depth: ${depth} current user: ${username}`);
 
       // save the rest of the followers, if needed
       const { followerLogins } = upsertedUser;
       if (depth > 0) {
         // save each follower
         followerLogins.map(followerLogin => {
-          Profile.findOneAndUpdate(
-            // query
-            { login: followerLogin },
-            // saved data
-            {
-              login: followerLogin,
-              depth: depth - 1
-            },
-            // options
-            {
-              upsert: true,
-              new: true
-            }
-          );
+          (async () => {
+            await Profile.findOneAndUpdate(
+              // query
+              { login: followerLogin },
+              // saved data
+              {
+                login: followerLogin,
+                depth: depth - 1
+              },
+              // options
+              {
+                upsert: true,
+                new: true
+              }
+            );
+            console.log(`Saved follower login=${followerLogin} to queue!`);
+          })();
         });
       }
     }
