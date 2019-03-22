@@ -117,11 +117,13 @@ const profileSchema = new Schema({
     default: {}
   },
   starredReposLangsEarliest: {
-    type: Object,
+    type: Map,
+    of: Date,
     default: {}
   },
   ownedReposLangsEarliest: {
-    type: Object,
+    type: Map,
+    of: Date,
     default: {}
   }
 });
