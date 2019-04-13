@@ -15,8 +15,12 @@ const { scrapeReposByKeyword, scrapeUsersByKeyword } = queryTools;
 const { USER_UPDATE_TIME_QTY, USER_UPDATE_TIME_DENOM } = process.env;
 const userUpdateTime = parseInt(USER_UPDATE_TIME_QTY, 10);
 
+function hasUpperCase(str) {
+  return /[A-Z]/.test(str);
+}
+
 export const runUpdateUserService = ({
-  timeInterval = 2000,
+  timeInterval = 8000,
   numWorkers = 2
 }) => {
   const cluster = genServiceCluster(
@@ -27,13 +31,14 @@ export const runUpdateUserService = ({
       const oldProfile = await Profile.findOneAndUpdate(
         {
           $or: [
-            { lastScrapedAt: { $exists: false } },
-            {
-              lastScrapedAt: {
-                $lt: moment().subtract(userUpdateTime, USER_UPDATE_TIME_DENOM),
-                $gte: 0
-              }
-            }
+            // { lastScrapedAt: { $exists: false } },
+            { userId: { $exists: false } } // implies recently added, hence field is not there.
+            // {
+            //   lastScrapedAt: {
+            //     $lt: moment().subtract(userUpdateTime, USER_UPDATE_TIME_DENOM),
+            //     $gte: 0
+            //   }
+            // }
           ]
         },
         // update time lock to prevent scraping
@@ -50,11 +55,19 @@ export const runUpdateUserService = ({
       const { login: username, depth } = oldProfile;
       console.log(`Updating username=${username}..`);
       const user = await scrapeUser({
-        username,
+        username: username.toLowerCase(),
         maxPages: parseInt(process.env.SCRAPE_MAX_PAGES)
       });
 
       const upsertedUser = await transformProfile(user);
+
+      // remove the username, if it contains a mix of
+      // lowercase and uppercase.  This is to prevent
+      // infinite loop bug
+      if (hasUpperCase(username)) {
+        console.log(`Removing login=${username} as it contains uppercase.`);
+        await Profile.deleteOne({ login: username });
+      }
 
       console.log(`current depth: ${depth} current user: ${username}`);
 
@@ -63,13 +76,14 @@ export const runUpdateUserService = ({
       if (depth > 0) {
         // save each follower
         followerLogins.map(followerLogin => {
+          const followerLogin2 = followerLogin.toLowerCase();
           (async () => {
             await Profile.findOneAndUpdate(
               // query
-              { login: followerLogin },
+              { login: followerLogin2 },
               // saved data
               {
-                login: followerLogin,
+                login: followerLogin2,
                 depth: depth - 1
               },
               // options
@@ -78,7 +92,7 @@ export const runUpdateUserService = ({
                 new: true
               }
             );
-            console.log(`Saved follower login=${followerLogin} to queue!`);
+            console.log(`Saved follower login=${followerLogin2} to queue!`);
           })();
         });
       }
@@ -90,10 +104,11 @@ export const runUpdateUserService = ({
 };
 
 const saveFollowerToQueue = async login => {
+  const login2 = login.toLowerCase();
   return Profile.findOneAndUpdate(
-    { login },
+    { login: login2 },
     {
-      login,
+      login: login2,
       lastScrapedAt: new Date(0),
       depth: 99 // set deep depth for user scraping
     },

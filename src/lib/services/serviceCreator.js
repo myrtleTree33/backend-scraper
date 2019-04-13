@@ -16,7 +16,10 @@ function genServiceSingle(serviceName, timeInterval, fn, fnArgs) {
           console.error(`Exception occured runing service=${serviceName}`);
           console.error(e);
         }
-        return sleep(timeInterval * Math.random());
+
+        const delay = Math.random() * timeInterval;
+        console.log(`Sleeping for ${delay}.`);
+        return sleep(delay);
       })();
     }
   );

@@ -9,11 +9,25 @@ import transformCommit from './CommitTransformer';
 const { GEOCODE_URL } = process.env;
 
 async function decodeLocation(location) {
-  const res = await axios.post(`${GEOCODE_URL}/geocode/decode`, {
-    query: location
-  });
-  const { countryNames, cityNames } = res.data;
-  return { countries: countryNames, cities: cityNames };
+  try {
+    axios.defaults.timeout = 10000;
+    const res = await axios.post(`${GEOCODE_URL}/geocode/decode`, {
+      query: location || ''
+    });
+
+    if (!res.data || res.data === {}) {
+      return { countries: [], cities: [] };
+    }
+
+    const { countryNames, cityNames } = res.data;
+    return { countries: countryNames, cities: cityNames };
+  } catch (e) {
+    console.error(
+      'Something wrong while retrieving location.  Returning default, empty cities and countries.'
+    );
+    console.error(e);
+    return { countries: [], cities: [] };
+  }
 }
 
 async function saveRepos(repos) {
@@ -72,7 +86,7 @@ export default async function transformProfile(input) {
       profilePic,
       company,
       blog,
-      location: location.toLowerCase(),
+      location: !location ? null : location.toLowerCase(),
       countries,
       cities,
       isHireable,

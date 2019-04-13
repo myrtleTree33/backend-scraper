@@ -11,6 +11,7 @@ const { MONGO_URI, NUM_WORKERS_USER_UPDATE = 3 } = process.env;
 
 // connect to Mongo
 mongoose.connect(MONGO_URI);
+console.log(`Connected to ${MONGO_URI}.`);
 
 // load environment variables
 const dotenv = require('dotenv');
@@ -25,7 +26,7 @@ dotenv.load();
 export default function app() {
   console.log('Running Scraper..');
   runUpdateUserService({
-    timeInterval: 2000,
+    timeInterval: 8000,
     numWorkers: parseInt(NUM_WORKERS_USER_UPDATE, 10) // usual 5
   });
 
