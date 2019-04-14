@@ -18,7 +18,6 @@ function genServiceSingle(serviceName, timeInterval, fn, fnArgs) {
         }
 
         const delay = Math.random() * timeInterval;
-        console.log(`Sleeping for ${delay}.`);
         return sleep(delay);
       })();
     }

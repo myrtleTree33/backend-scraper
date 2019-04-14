@@ -12,15 +12,50 @@ const { scrapeUser } = profileTools;
 const { scrapeRepo } = repoTools;
 const { scrapeReposByKeyword, scrapeUsersByKeyword } = queryTools;
 
-const { USER_UPDATE_TIME_QTY, USER_UPDATE_TIME_DENOM } = process.env;
+const {
+  USER_UPDATE_TIME_QTY,
+  USER_UPDATE_TIME_DENOM,
+  OLD_PROFILE_SAMPLE_SIZE
+} = process.env;
 const userUpdateTime = parseInt(USER_UPDATE_TIME_QTY, 10);
 
 function hasUpperCase(str) {
   return /[A-Z]/.test(str);
 }
 
+async function deleteUserIf404(resHttpStatus, username) {
+  // delete user if invalid login
+  if (resHttpStatus === 404) {
+    console.warn(
+      `404 Exception occured when scraping login=${username}, proceeding to delete user..`
+    );
+    await Profile.deleteOne({
+      login: username.toLowerCase()
+    });
+  }
+}
+
+async function getRandomOldProfile(sampleSize = 1) {
+  const oldProfiles =
+    (await Profile.find({
+      $or: [
+        // { lastScrapedAt: { $exists: false } },
+        { userId: { $exists: false } } // implies recently added, hence field is not there.
+        // {
+        //   lastScrapedAt: {
+        //     $lt: moment().subtract(userUpdateTime, USER_UPDATE_TIME_DENOM),
+        //     $gte: 0
+        //   }
+        // }
+      ]
+    }).limit(sampleSize)) || [];
+  const maxSize = Math.min(oldProfiles.length, sampleSize);
+  const i = Math.floor(Math.random() * (maxSize - 1));
+  return oldProfiles[i];
+}
+
 export const runUpdateUserService = ({
-  timeInterval = 8000,
+  timeInterval = 5000,
   numWorkers = 2
 }) => {
   const cluster = genServiceCluster(
@@ -28,36 +63,38 @@ export const runUpdateUserService = ({
     timeInterval,
     numWorkers,
     async () => {
-      const oldProfile = await Profile.findOneAndUpdate(
-        {
-          $or: [
-            // { lastScrapedAt: { $exists: false } },
-            { userId: { $exists: false } } // implies recently added, hence field is not there.
-            // {
-            //   lastScrapedAt: {
-            //     $lt: moment().subtract(userUpdateTime, USER_UPDATE_TIME_DENOM),
-            //     $gte: 0
-            //   }
-            // }
-          ]
-        },
-        // update time lock to prevent scraping
-        // by other workers
-        {
-          $set: { lastScrapedAt: Date.now() }
-        }
+      let oldProfile = await getRandomOldProfile(
+        parseInt(OLD_PROFILE_SAMPLE_SIZE, 10) || 50
       );
 
+      // skip if there are no profiles to scrape
       if (!oldProfile) {
         return;
       }
 
       const { login: username, depth } = oldProfile;
       console.log(`Updating username=${username}..`);
-      const user = await scrapeUser({
-        username: username.toLowerCase(),
-        maxPages: parseInt(process.env.SCRAPE_MAX_PAGES)
-      });
+
+      // update Profile's lastScrapedAt time.
+      oldProfile = await Profile.updateOne(
+        { login: username },
+        { $set: { lastScrapedAt: Date.now() } },
+        { upsert: true, new: true }
+      );
+
+      let user;
+      try {
+        user = await scrapeUser({
+          username: username.toLowerCase(),
+          maxPages: parseInt(process.env.SCRAPE_MAX_PAGES)
+        });
+      } catch (err) {
+        const {
+          response: { status: resHttpStatus }
+        } = err;
+        await deleteUserIf404(resHttpStatus, username);
+        return; // early exit; do not save user
+      }
 
       const upsertedUser = await transformProfile(user);
 
@@ -71,7 +108,7 @@ export const runUpdateUserService = ({
 
       console.log(`current depth: ${depth} current user: ${username}`);
 
-      // save the rest of the followers, if needed
+      // save current user's followers
       const { followerLogins } = upsertedUser;
       if (depth > 0) {
         // save each follower
